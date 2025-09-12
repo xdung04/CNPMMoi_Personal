@@ -1,34 +1,58 @@
-import { Form, Input, Button, Card, message } from "antd";
-import axios from "axios";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import userApi from "../api/userAPI";
 
-export default function Login() {
+function Login() {
+  const [account, setAccount] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const onFinish = async (values) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:8888/api/login", values);
-      localStorage.setItem("userId", res.data.user.id);
-      message.success("Login success!");
-      navigate("/account"); // ✅ tự động chuyển sang trang account
+      const res = await userApi.login({ account, password });
+      localStorage.setItem("user", JSON.stringify(res.data.user)); // lưu user vào localStorage
+      navigate("/account");
     } catch (err) {
-      message.error("Login failed: " + err.response.data.error);
+      setError(err.response?.data?.error || "Login failed");
     }
   };
 
   return (
-    <Card title="Login" style={{ maxWidth: 400, margin: "50px auto" }}>
-      <Form layout="vertical" onFinish={onFinish}>
-        <Form.Item name="account" label="Username or Email" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="password" label="Password" rules={[{ required: true }]}>
-          <Input.Password />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" block>
+    <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+      <h2 className="text-3xl font-bold mb-6 text-center text-indigo-600">Login</h2>
+      {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <input
+          type="text"
+          placeholder="Username or Email"
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          value={account}
+          onChange={(e) => setAccount(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button
+          type="submit"
+          className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
+        >
           Login
-        </Button>
-      </Form>
-    </Card>
+        </button>
+      </form>
+      <p className="mt-4 text-sm text-gray-600 text-center">
+        Don’t have an account?{" "}
+        <a href="/register" className="text-indigo-600 hover:underline">
+          Register
+        </a>
+      </p>
+    </div>
   );
 }
+
+export default Login;
