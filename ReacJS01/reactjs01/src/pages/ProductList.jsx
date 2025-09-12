@@ -29,54 +29,55 @@ function ProductList() {
   }, []);
 
   // 🟢 Lấy sản phẩm
-  // trong fetchProducts:
-const fetchProducts = useCallback(async () => {
-  if (loading || !hasMore) return;
-  setLoading(true);
+  const fetchProducts = useCallback(async () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
 
-  try {
-    // Chuẩn hóa filter
-    const query = {
-      q: search?.trim() || undefined,
-      categoryId: categoryId || undefined,
-      minPrice: priceMin !== "" ? Number(priceMin) : undefined,
-      maxPrice: priceMax !== "" ? Number(priceMax) : undefined,
-      page,
-      limit: 6,
-    };
+    try {
+      const query = {
+        q: search?.trim() || undefined,
+        categoryId: categoryId || undefined,
+        minPrice: priceMin !== "" ? Number(priceMin) : undefined,
+        maxPrice: priceMax !== "" ? Number(priceMax) : undefined,
+        page,
+        limit: 6,
+      };
 
-    let res;
-    // Nếu có ít nhất một filter hợp lệ thì search
-    if (query.q || query.categoryId || query.minPrice || query.maxPrice) {
-      res = await productApi.search(query);
-    } else {
-      // không có filter nào => lấy tất cả
-      res = await productApi.getProducts({ page, limit: 6 });
-    }
-
-    setProducts((prev) => {
-      const newItems = res.data.products.filter(
-        (p) => !prev.some((old) => (old._id || old.id) === (p._id || p.id))
-      );
-      const updated = [...prev, ...newItems];
-
-      if (updated.length >= res.data.total) {
-        setHasMore(false);
+      let res;
+      if (query.q || query.categoryId || query.minPrice || query.maxPrice) {
+        res = await productApi.search(query);
+      } else {
+        res = await productApi.getProducts({ page, limit: 6 });
       }
-      return updated;
-    });
 
-    console.log("📦 Fetch page:", page,
-      "Got:", res.data.products.length,
-      "Total:", res.data.total
-    );
-  } catch (err) {
-    console.error("Fetch products error:", err);
-  } finally {
-    setLoading(false);
-  }
-}, [categoryId, search, priceMin, priceMax, page, loading, hasMore]);
+      setProducts((prev) => {
+        const newItems = res.data.products.map((p) => ({
+          ...p,
+          uid: p._id || p.id, // chuẩn hóa id
+        }));
 
+        const updated = [
+          ...prev,
+          ...newItems.filter((p) => !prev.some((old) => old.uid === p.uid)),
+        ];
+
+        if (updated.length >= res.data.total) {
+          setHasMore(false);
+        }
+        return updated;
+      });
+
+      console.log(
+        "📦 Fetch page:", page,
+        "Got:", res.data.products.length,
+        "Total:", res.data.total
+      );
+    } catch (err) {
+      console.error("Fetch products error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [categoryId, search, priceMin, priceMax, page, hasMore, loading]);
 
   // Reset khi đổi filter/search
   useEffect(() => {
@@ -87,7 +88,6 @@ const fetchProducts = useCallback(async () => {
 
   // Load khi page thay đổi
   useEffect(() => {
-    if (page === 1 && products.length > 0) return;
     fetchProducts();
   }, [page, fetchProducts]);
 
@@ -105,7 +105,7 @@ const fetchProducts = useCallback(async () => {
 
           debounceRef.current = setTimeout(() => {
             setPage((prev) => prev + 1);
-          }, 800);
+          }, 300);
         }
       });
 
@@ -113,6 +113,13 @@ const fetchProducts = useCallback(async () => {
     },
     [loading, hasMore, page]
   );
+
+  // Cleanup debounce
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   return (
     <div>
@@ -167,7 +174,7 @@ const fetchProducts = useCallback(async () => {
           return (
             <div
               ref={isLast ? lastProductRef : null}
-              key={p._id}
+              key={p.uid}
               className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden"
             >
               <img
